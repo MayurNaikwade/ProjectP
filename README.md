@@ -27,6 +27,7 @@ The service is a simple **FastAPI** application exposing two endpoints:
 Example response:
 ```json
 { "score": 0.85 }
+````
 
 ---
 
@@ -67,3 +68,123 @@ flowchart LR
   ECS --> CWL[CloudWatch Logs]
   ECS --> CWM[CloudWatch Metrics]
   CWM --> AL[CloudWatch Alarms]
+````
+
+---
+
+## Containerization
+
+### Docker Implementation
+
+- Multi-stage Dockerfile to minimize final image size
+- Non-root user for runtime security
+- Built-in container healthcheck calling /health
+- Minimal Python base image
+
+### Local Testing
+
+```bash
+docker build -t projectp-api:local .
+docker run --rm -p 8080:8080 projectp-api:local
+
+curl http://localhost:8080/health
+curl http://localhost:8080/predict
+````
+
+---
+
+## Infrastructure as Code (Terraform)
+
+All AWS infrastructure is provisioned and managed using Terraform, ensuring repeatable and auditable deployments.
+
+### Provisioned Resources
+
+- VPC with public and private subnets
+- NAT Gateway for outbound traffic from private subnets
+- Application Load Balancer with HTTP → HTTPS redirect
+- ACM certificate with DNS validation via Route53
+- ECS Cluster and ECS Fargate Service
+- CloudWatch Log Group
+- CloudWatch dashboards and alarms
+- Route53 alias record for the application domain
+- IAM roles for ECS and GitHub Actions (least privilege)
+
+### Deploy/Destroy Infrastructure
+
+```bash
+cd terraform
+terraform init
+terraform apply
+
+terraform destroy
+````
+
+---
+
+## CI/CD Pipeline (GitHub Actions)
+
+Workflow file: .github/workflows/ci-cd.yml
+
+### Continuous Integration (CI)
+
+Triggered on pull requests and pushes:
+- Install dependencies
+- Run unit tests using pytest
+
+### Continuous Deployment (CD)
+
+Triggered on pushes to main:
+1. Authenticate to AWS using GitHub OIDC
+2. Build Docker image
+3. Push image to Amazon ECR
+4. Fetch current ECS task definition
+5. Register a new task definition revision with updated image
+6. Update ECS service using rolling deployment
+7. Wait for service stability
+
+### Deployment Strategy
+- Rolling deployments via ECS Service
+- Zero downtime using minimum healthy percent configuration
+
+---
+
+## Monitoring & Alerting
+
+### CloudWatch Metrics
+- ECS CPUUtilization
+- ECS MemoryUtilization
+- ALB HTTPCode_Target_5XX_Count
+- ALB UnHealthyHostCount
+
+### CloudWatch Dashboard
+- Visualizes CPU and memory usage, error rates and Target group health.
+- Alerts on high CPU utilization alarm and unhealthy target alarm (failed health checks)
+
+---
+
+## Security Considerations
+
+### IAM & Access Control
+- ECS task execution role: ECR pull + CloudWatch logs (Least-privilege)
+- GitHub Actions role: ECR push, ECS deploy, iam:PassRole (Least-privilege)
+- No AWS credentials stored in the repository
+- GitHub Actions authenticates using OIDC
+
+### Network Security
+- ECS tasks run in private subnets
+- ALB is the only public-facing component
+- Security groups restrict traffic to required ports only
+
+### HTTPS Enforcement
+- ALB listener on port 80 redirects to HTTPS (443)
+- TLS certificates managed by AWS ACM
+- All client traffic encrypted in transit
+
+### Secrets Management
+- Infrastructure supports AWS Secrets Manager / SSM Parameter Store
+- Secrets can be injected into ECS task definitions
+- This demo service does not require runtime secrets
+
+---
+
+
