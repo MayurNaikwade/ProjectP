@@ -11,4 +11,4 @@ def test_health():
 def test_predict():
     r = client.get("/predict")
     assert r.status_code == 200
-    assert r.json()["score"] == 0.75
+    assert r.json()["score"] == 0.85

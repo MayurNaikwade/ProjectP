@@ -8,4 +8,4 @@ def health():
 
 @app.get("/predict")
 def predict():
-    return {"score": 0.75}
+    return {"score": 0.85}
