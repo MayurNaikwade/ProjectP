@@ -73,3 +73,8 @@ jobs:
           cluster: ${{ secrets.ECS_CLUSTER }}
           service: ${{ secrets.ECS_SERVICE }}
           wait-for-service-stability: true
+
+      - name: Smoke Test
+        run: |
+          curl -fsS https://api.mayurnaikwade.com/health
+          curl -fsS https://api.mayurnaikwade.com/predict
