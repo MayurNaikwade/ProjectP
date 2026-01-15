@@ -187,4 +187,86 @@ Triggered on pushes to main:
 
 ---
 
+## For authenticating GitHub actions with AWS using OIDC
+
+### 1. Create GitHub OIDC provider (one-time)
+( IAM → Identity providers → create )
+- Type: OpenID Connect
+- URL: https://token.actions.githubusercontent.com
+- Audience: sts.amazonaws.com
+
+### 2. Create IAM Role (ProjectP-GitHubDeployRole) for GitHub Actions deploy
+
+Trust policy (repo + branch locked):
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::047719624596:oidc-provider/token.actions.githubusercontent.com"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+        },
+        "StringLike": {
+          "token.actions.githubusercontent.com:sub": "repo:MayurNaikwade/ProjectP:ref:refs/heads/main"
+        }
+      }
+    }
+  ]
+}
+````
+
+Inline permissions policy to the role (least privilege):
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EcrAuth",
+      "Effect": "Allow",
+      "Action": "ecr:GetAuthorizationToken",
+      "Resource": "*"
+    },
+    {
+      "Sid": "EcrPushRepo",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:BatchGetImage",
+        "ecr:CompleteLayerUpload",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:InitiateLayerUpload",
+        "ecr:PutImage",
+        "ecr:UploadLayerPart"
+      ],
+      "Resource": "arn:aws:ecr:us-east-1:047719624596:repository/simple-web-app/projectp-api"
+    },
+    {
+      "Sid": "EcsDeploy",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:DescribeServices",
+        "ecs:DescribeTaskDefinition",
+        "ecs:RegisterTaskDefinition",
+        "ecs:UpdateService"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "PassOnlyTaskRoles",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": [
+        "arn:aws:iam::047719624596:role/projectp-api-task-exec",
+        "arn:aws:iam::047719624596:role/projectp-api-task-role"
+      ]
+    }
+  ]
+}
+````
 
