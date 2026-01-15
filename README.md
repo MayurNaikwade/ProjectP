@@ -112,8 +112,11 @@ All AWS infrastructure is provisioned and managed using Terraform, ensuring repe
 ### Deploy/Destroy Infrastructure
 
 ```bash
+aws configure
+
 cd terraform
 terraform init
+terraform plan
 terraform apply
 
 terraform destroy
